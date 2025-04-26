@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lista de Equipos</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ccc;
+            padding: 10px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .acciones a, .acciones form {
+            margin-right: 5px;
+            display: inline-block;
+        }
+
+        /* Semaforización */
+        .verde { background-color: #d4edda; }
+        .amarillo { background-color: #fff3cd; }
+        .rojo { background-color: #f8d7da; }
+        .gris { background-color: #e2e3e5; }
+    </style>
+</head>
+<body>
+    <h2>Listado de Equipos</h2>
+
+    <form method="GET" action="{{ url_for('listar_equipos') }}">
+        <label for="buscar">Buscar por ID, Nombre o Serie:</label>
+        <input type="text" id="buscar" name="buscar" placeholder="Ej: 5 o Desfibrilador o AB123" value="{{ request.args.get('buscar', '') }}">
+        <button type="submit">🔍 Buscar</button>
+        <a href="{{ url_for('listar_equipos') }}">
+            <button type="button">🧹 Limpiar búsqueda</button>
+        </a>
+    </form>
+
+    <form method="get" action="{{ url_for('listar_equipos') }}">
+          
+        <!-- Botón nuevo para mostrar tabla resumen -->
+        <button type="submit" name="vista" value="resumen">Calendario de Semaforización</button>
+        <button type="submit" name="vista" value="resumen1">Detalle de insumos</button>    
+        <!-- Botón limpiar (ya debe estar pero lo dejamos por si) -->
+        <button type="submit">Limpiar</button>
+    </form>
+
+    <br>
+
+    <!-- Botón de Semaforización -->
+    <!--<form method="GET" action="{{ url_for('listar_equipos') }}">
+        <button type="submit" name="color" value="verde">Ver equipos en estado verde</button>
+        <button type="submit" name="color" value="amarillo">Ver equipos en estado amarillo</button>
+        <button type="submit" name="color" value="rojo">Ver equipos en estado rojo</button>
+        <button type="submit" name="color" value="gris">Ver equipos en estado gris</button>
+        <a href="{{ url_for('listar_equipos') }}"><button type="button">🧹 Limpiar filtro</button></a>
+    </form>-->
+
+    {% if vista == 'resumen1' %}
+    <!-- TABLA RESUMIDA -->
+    <table>
+        <thead>
+            <tr>
+                <th>Insumos</th>
+                <th>Responsable de compra</th>
+                <th>Costo</th>
+                <th>Fecha de compra</th>
+                
+            </tr>
+        </thead>
+        <tbody>
+            {% for equipo in equipos %}
+            <tr>
+                <td>{{ equipo.insumos or '—' }}</td>
+                <td>{{ equipo.responsable_compra_insumos or '—' }}</td>
+                <td>{{ equipo.costo_insumo or '—' }}</td>
+                <td>{{ equipo.fecha_compra_insumos or '—' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {% elif vista == 'resumen' %}
+    <!-- TABLA RESUMIDA -->
+    <table>
+        <thead>
+            <tr>
+                <th>Nombre del Equipo</th>
+                <th>Fecha ultimo Mant. Preventivo</th>
+                <th>Estado Preventivo</th>
+                <th>Costo Mant. Preventivo</th>
+                <th>Responsable Mant. Preventivo</th>
+                <th>Próx. Mant. Preventivo</th>
+                <th>Fecha ultimo Mant. Correctivo</th>
+                <th>Estado Correctivo</th>
+                <th>Costo Mant. Correctivo</th>
+                <th>Responsable Mant. Correctivo</th>
+                <th>Fecha Nuevo Mant. Correctivo</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for equipo in equipos %}
+            <tr>
+                <td>{{ equipo.nombre_equipo }}</td>
+                <td>{{ equipo.fecha_mantenimiento_preventivo or '—' }}</td>
+                <td class="{{ equipo.color_preventivo | lower }}">{{ equipo.color_preventivo }}</td>
+                <td>{{ equipo.mantenimiento_preventivo or '—' }}</td>
+                <td>{{ equipo.responsable_mantenimiento_preventivo or '—' }}</td>
+                <td>
+                    {{ equipo.fecha_proximo_mantenimiento_preventivo or '—' }}
+                    {% if equipo.color_preventivo == 'Rojo' and equipo.dias_mora %}
+                        <br><small><strong>{{ equipo.dias_mora }} días de mora</strong></small>
+                    {% endif %}
+                </td>
+                <td>{{ equipo.fecha_mantenimiento_correctivo or '—' }}</td>
+                <td class="{{ equipo.color_correctivo | lower }}">{{ equipo.color_correctivo }}</td>
+                <td>{{ equipo.mantenimiento_correctivo or '—' }}</td>
+                <td>{{ equipo.responsable_mantenimiento_correctivo or '—' }}</td>
+                <td>{{ equipo.fecha_nuevo_mantenimiento_correctivo or '—' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% else %}
+    <!-- TABLA COMPLETA -->
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Número</th>
+                <th>Nombre</th>
+                <th>Serie</th>
+                <th>Marca</th>
+                <th>Modelo</th>
+                <th>Ubicación</th>
+                <!--<th>Insumos</th>
+                <th>Costo Mant. Preventivo</th>
+                <th>Fecha ultimo Mant. Preventivo</th>
+                <th>Responsable Mant. Preventivo</th>
+                <th>Próx. Mant. Preventivo</th>
+                <th>Costo Mant. Correctivo</th>
+                <th>Fecha Ultimo Mant. Correctivo</th>
+                <th>Responsable Mant. Correctivo</th>
+                <th>Fecha Nuevo Mant. Correctivo</th>-->
+                <th>Registro Invima</th>
+                <th>Calibración</th>
+                <th>Observaciones</th>
+                <th>Estado Preventivo</th>
+                <th>Estado Correctivo</th>
+                <th>Documentos</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for equipo in equipos %}
+            <tr>
+                <td>{{ equipo.id }}</td>
+                <td>{{ equipo.numero_equipo }}</td>
+                <td>{{ equipo.nombre_equipo }}</td>
+                <td>{{ equipo.serie }}</td>
+                <td>{{ equipo.marca }}</td>
+                <td>{{ equipo.modelo }}</td>
+                <td>{{ equipo.ubicacion }}</td>
+                <!--<td>{{ equipo.insumos or '—' }}</td>
+                <td>{{ equipo.mantenimiento_preventivo or '—' }}</td>
+                <td>{{ equipo.fecha_mantenimiento_preventivo or '—' }}</td>
+                <td>{{ equipo.responsable_mantenimiento_preventivo or '—' }}</td>
+                <td>
+                    {{ equipo.fecha_proximo_mantenimiento_preventivo or '—' }}
+                    {% if equipo.color_preventivo == 'Rojo' and equipo.dias_mora %}
+                        <br><small><strong>{{ equipo.dias_mora }} días de mora</strong></small>
+                    {% endif %}
+                </td>
+                <td>{{ equipo.mantenimiento_correctivo or '—' }}</td>
+                <td>{{ equipo.fecha_mantenimiento_correctivo or '—' }}</td>
+                <td>{{ equipo.responsable_mantenimiento_correctivo or '—' }}</td>
+                <td>{{ equipo.fecha_nuevo_mantenimiento_correctivo or '—' }}</td>-->
+                <td>{{ equipo.registro_invima or '—' }}</td>
+                <td>{{ equipo.calibracion or '—' }}</td>
+                <td>{{ equipo.observaciones or '—' }}</td>
+                <td class="{{ equipo.color_preventivo | lower }}">{{ equipo.color_preventivo }}</td>
+                <td class="{{ equipo.color_correctivo | lower }}">{{ equipo.color_correctivo }}</td>
+                <td>
+                    {% if equipo.hoja_vida %}
+                        <a href="{{ url_for('ver_archivo', nombre_archivo=equipo.hoja_vida) }}" target="_blank">📄 Hoja de Vida</a><br>
+                    {% endif %}
+                    {% if equipo.manuales %}
+                        <a href="{{ url_for('ver_archivo', nombre_archivo=equipo.manuales) }}" target="_blank">📘 Manuales</a><br>
+                    {% endif %}
+                    {% if equipo.factura %}
+                        <a href="{{ url_for('ver_archivo', nombre_archivo=equipo.factura) }}" target="_blank">🧾 Factura</a>
+                    {% endif %}
+                </td>
+                <td class="acciones">
+                    <a href="{{ url_for('editar_equipo', id=equipo.id) }}">✏️ Editar</a>
+                    <form action="{{ url_for('eliminar_equipo', id=equipo.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('¿Estás seguro de eliminar este equipo?')">
+                        <button type="submit">🗑️ Eliminar</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endif %}
+
+
+    <br>
+    <a href="{{ url_for('agregar_equipo') }}">➕ Registrar Nuevo Equipo</a>
+    <br><br>
+    <a href="/dashboard">⬅️ Volver al Dashboard</a>
+</body>
+</html>

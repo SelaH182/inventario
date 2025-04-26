@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Historial de Inicios de Sesión</title>
+</head>
+<body>
+    <h2>Historial de Inicios de Sesión</h2>
+
+    <table border="1">
+        <tr>
+            <th>ID</th>
+            <th>Usuario</th>
+            <th>Acción</th>
+            <th>Fecha y Hora</th>
+            <th>Descripción</th>
+        </tr>
+
+        {% for traza in trazas %}
+        <tr>
+            <td>{{ traza.id }}</td>
+            <td>{{ traza.user_id }}</td> <!-- O podrías mostrar username si quieres -->
+            <td>{{ traza.accion }}</td>
+            <td>{{ traza.fecha_hora.strftime("%d/%m/%Y %H:%M:%S") }}</td>
+            <td>{{ traza.descripcion }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <br>
+    <a href="/dashboard">Volver al Dashboard</a>
+</body>
+</html>

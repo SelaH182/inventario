@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+</head>
+<body>
+    <h2>Bienvenido al Panel de Control</h2>
+
+    <h3>Gestión de Equipos Médicos</h3>
+    <a href="{{ url_for('agregar_equipo') }}">
+        <button>➕ Agregar Nuevo Equipo</button>
+    </a>
+    <br><br>
+    <a href="{{ url_for('listar_equipos') }}">
+        <button>📋 Ver Equipos Registrados</button>
+    </a>
+
+    <h3>Gestión de Usuarios</h3>
+    <a href="{{ url_for('listar_usuarios') }}">
+        <button>👥 Administrar Usuarios</button>
+    </a>
+
+    <h3>Trazabilidad de Usuarios</h3>
+    <a href="{{ url_for('ver_trazabilidad') }}">
+        <button>🕒 Ver Trazabilidad</button>
+    </a>
+
+    <h3>Sesión</h3>
+    <a href="{{ url_for('logout') }}">
+        <button>🚪 Cerrar Sesión</button>
+    </a>
+</body>
+</html>
