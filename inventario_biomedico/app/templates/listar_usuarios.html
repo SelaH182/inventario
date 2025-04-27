@@ -12,6 +12,7 @@
         <tr>
             <th>ID</th>
             <th>Nombre de Usuario</th>
+            <th>Correo</th>
             <th>Rol</th>
             <th>Acciones</th>
         </tr>
@@ -20,6 +21,7 @@
         <tr>
             <td>{{ usuario.id }}</td>
             <td>{{ usuario.username }}</td>
+            <td>{{ usuario.correo }}</td>
             <td>{{ usuario.role }}</td>
             <td>
                 <a href="{{ url_for('editar_usuario', id=usuario.id) }}">✏️ Editar</a>

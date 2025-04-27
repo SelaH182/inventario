@@ -7,6 +7,16 @@
 </head>
 <body>
     <h2>Iniciar Sesión</h2>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="alert alert-{{ category }}">
+        {{ message }}
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
 
     <form action="{{ url_for('login') }}" method="POST">
         <label for="username">Usuario:</label>
@@ -21,5 +31,7 @@
     </form>
 
     <p>¿No tienes una cuenta? <a href="{{ url_for('register') }}">Regístrate aquí</a></p>
+    
+    <p><a href="{{ url_for('recuperar') }}">¿Olvidaste tu contraseña?</a></p>
 </body>
 </html>

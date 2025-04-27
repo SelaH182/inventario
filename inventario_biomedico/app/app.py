@@ -1,6 +1,6 @@
 import os
 import sys
-
+import secrets
 sys.path.append(os.path.join(os.path.dirname(__file__), 'app'))
 from flask import Flask, render_template, request, redirect, url_for, session, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
@@ -9,11 +9,25 @@ from werkzeug.utils import secure_filename
 from models import db, Usuario, Equipo
 from sqlalchemy import or_
 from datetime import date
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask_migrate import Migrate
-from flask import flash
+from flask import flash, request
 from models import Usuario, Trazabilidad
+from flask_mail import Mail, Message
 
+
+# Inicializar la aplicación Flask
+app = Flask(__name__)
+
+# Configuración de Flask-Mail
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'  # o tu servidor SMTP
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USE_SSL'] = False
+app.config['MAIL_USERNAME'] = 'inventariobiomedicounab@gmail.com'   # aquí tu correo
+app.config['MAIL_PASSWORD'] = 'ccel gody phnr tqkn'  # aquí la contraseña de app
+
+mail = Mail(app)
 
 # Carpeta de subida de archivos
 UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'uploads')
@@ -22,8 +36,7 @@ ALLOWED_EXTENSIONS = {'pdf'}
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# Inicializar la aplicación Flask
-app = Flask(__name__)
+
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -78,19 +91,109 @@ def login():
 def register():
     if 'role' not in session or session['role'] != 'administrador':
         return "Acceso denegado. No tienes permisos para ver esta página.", 403
+
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
-        hashed_password = generate_password_hash(password)  # Encriptar la contraseña
+        hashed_password = generate_password_hash(password)
         role = request.form['role']
-        
-        new_user = Usuario(username=username, password=hashed_password, role=role)
+        correo = request.form.get('correo')
+
+        # Validar si el username o correo ya existen
+        existing_user = Usuario.query.filter_by(username=username).first()
+        existing_email = Usuario.query.filter_by(correo=correo).first()
+
+        if existing_user:
+            flash('El nombre de usuario ya está en uso. Por favor elige otro.', 'error')
+            return redirect(url_for('register'))
+
+        if existing_email:
+            flash('El correo electrónico ya está registrado. Por favor usa otro.', 'error')
+            return redirect(url_for('register'))
+
+        # Si no existen, crear el usuario
+        new_user = Usuario(
+            username=username,
+            password=hashed_password,
+            role=role,
+            correo=correo
+        )
         db.session.add(new_user)
         db.session.commit()
 
+        flash('Usuario registrado exitosamente.', 'success')
         return redirect(url_for('login'))
-    
+
     return render_template('register.html')
+
+# Ruta para recuperar contraseña
+@app.route('/recuperar', methods=['GET', 'POST'])
+def recuperar():
+    if request.method == 'POST':
+        correo = request.form['correo']
+        usuario = Usuario.query.filter_by(correo=correo).first()
+
+        if usuario:
+            token = secrets.token_urlsafe(16)
+            usuario.reset_token = token
+            usuario.reset_token_expiration = datetime.utcnow() + timedelta(hours=1)
+            db.session.commit()
+
+            # Crear el mensaje
+            msg = Message('Recuperación de Contraseña',
+                          sender=app.config['MAIL_USERNAME'],
+                          recipients=[correo])
+            link_reset = url_for('resetear_contraseña', _external=True) + f"?token={token}"
+            msg.body = f"""
+Hola,
+
+Para resetear tu contraseña, haz clic en el siguiente enlace:
+
+{link_reset}
+
+También puedes usar el siguiente token si se te solicita:
+
+Token: {token}
+
+Este enlace y token expirarán en 1 hora.
+
+Saludos,
+El equipo de soporte
+"""
+
+            # Enviar el correo
+            mail.send(msg)
+
+            flash('Se ha enviado un correo con instrucciones para resetear tu contraseña.', 'info')
+            return redirect(url_for('login'))
+        else:
+            flash('No se encontró una cuenta con ese correo.', 'error')
+            return redirect(url_for('recuperar'))
+
+    return render_template('recuperar.html')
+
+# Ruta para resetear la contraseña usando el token
+@app.route('/resetear_contraseña', methods=['GET', 'POST'])
+def resetear_contraseña():
+    if request.method == 'POST':
+        token = request.form['token']
+        nueva_contraseña = request.form['password']
+
+        usuario = Usuario.query.filter_by(reset_token=token).first()
+
+        if usuario and usuario.reset_token_expiration > datetime.utcnow():
+            usuario.password = generate_password_hash(nueva_contraseña)
+            usuario.reset_token = None
+            usuario.reset_token_expiration = None
+            db.session.commit()
+
+            flash('Tu contraseña ha sido restablecida correctamente. Ya puedes iniciar sesión.', 'success')
+            return redirect(url_for('login'))
+        else:
+            flash('El token es inválido o ha expirado. Por favor, solicita uno nuevo.', 'error')
+            return redirect(url_for('recuperar'))
+
+    return render_template('resetear_contraseña.html')
 
 # Ruta para el (panel de control) dashboard
 @app.route('/dashboard')
@@ -289,13 +392,19 @@ def editar_equipo(id):
         equipo.marca = request.form['marca']
         equipo.modelo = request.form['modelo']
         equipo.ubicacion = request.form['ubicacion']
-        equipo.mantenimiento_preventivo = request.form['mantenimiento_preventivo']
+        
+        mantenimiento_preventivo = request.form['mantenimiento_preventivo']
         mantenimiento_preventivo = float(mantenimiento_preventivo) if mantenimiento_preventivo else None
+        equipo.mantenimiento_preventivo = mantenimiento_preventivo
+        
         equipo.fecha_mantenimiento_preventivo = request.form['fecha_mantenimiento_preventivo']
         equipo.responsable_mantenimiento_preventivo = request.form['responsable_mantenimiento_preventivo']
         equipo.fecha_proximo_mantenimiento_preventivo = request.form['fecha_proximo_mantenimiento_preventivo']
-        equipo.mantenimiento_correctivo = request.form['mantenimiento_correctivo']
+        
+        mantenimiento_correctivo = request.form['mantenimiento_correctivo']
         mantenimiento_correctivo = float(mantenimiento_correctivo) if mantenimiento_correctivo else None
+        equipo.mantenimiento_correctivo = mantenimiento_correctivo
+        
         equipo.fecha_mantenimiento_correctivo = request.form['fecha_mantenimiento_correctivo']
         equipo.responsable_mantenimiento_correctivo = request.form['responsable_mantenimiento_correctivo']
         equipo.fecha_nuevo_mantenimiento_correctivo = request.form['fecha_nuevo_mantenimiento_correctivo']
@@ -303,8 +412,10 @@ def editar_equipo(id):
         equipo.calibracion = request.form['calibracion']
         equipo.observaciones = request.form['observaciones']
         equipo.insumos = request.form.get('insumos')
-        
-        
+        equipo.responsable_compra_insumos = request.form.get('responsable_compra_insumos')
+        equipo.costo_insumo = request.form.get('costo_insumo')
+        equipo.fecha_compra_insumos = request.form.get('fecha_compra_insumos')
+
         db.session.commit()
         return redirect(url_for('listar_equipos'))
 
@@ -324,17 +435,35 @@ def eliminar_equipo(id):
 def editar_usuario(id):
     if 'role' not in session or session['role'] != 'administrador':
         return "Acceso denegado. No tienes permisos para ver esta página.", 403
+
     usuario = Usuario.query.get_or_404(id)
 
     if request.method == 'POST':
-        usuario.username = request.form['username']
-        usuario.role = request.form['role']
+        username = request.form['username']
+        correo = request.form['correo']
+        role = request.form['role']
+        password = request.form['password']
 
-        if request.form['password']:
-            usuario.password = generate_password_hash(request.form['password'])
+        # Validar campos vacíos (opcional pero recomendado)
+        if not username or not correo or not role:
+            flash('Todos los campos son obligatorios.', 'danger')
+            return redirect(url_for('editar_usuario', id=id))
 
-        db.session.commit()
-        return redirect(url_for('listar_usuarios'))
+        try:
+            # Actualizar datos
+            usuario.username = username
+            usuario.role = role
+            usuario.correo = correo
+            if password:
+                usuario.password = generate_password_hash(password)
+
+            db.session.commit()
+            flash('Usuario actualizado exitosamente.', 'success')
+            return redirect(url_for('listar_usuarios'))
+        except Exception as e:
+            db.session.rollback()
+            flash('Error al actualizar usuario: ' + str(e), 'danger')
+            return redirect(url_for('editar_usuario', id=id))
 
     return render_template('editar_usuario.html', usuario=usuario)
 

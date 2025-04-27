@@ -13,10 +13,15 @@
         <input type="text" id="username" name="username" value="{{ usuario.username }}" required>
         <br><br>
 
+        <label for="correo">Correo:</label>
+        <input type="email" id="correo" name="correo" required>
+        <br><br>
+
         <label for="role">Rol:</label>
-        <select id="role" name="role">
-            <option value="admin" {% if usuario.role == "admin" %}selected{% endif %}>Administrador</option>
-            <option value="usuario" {% if usuario.role == "usuario" %}selected{% endif %}>Usuario</option>
+        <select id="role" name="role" required>
+            <option value="administrador">Administrador</option>
+            <option value="Laboratorio Clínico">Laboratorio Clínico</option>
+            <option value="Salud Ocupacional">Salud Ocupacional</option>
         </select>
         <br><br>
 
